@@ -68,7 +68,7 @@ export default class Dep {
 	}
 
 	notify () { // 触发依赖
-		const subs = this.subs.slice() // 深拷贝 操作不会影响原数据
+		const subs = this.subs.splice() // 深拷贝 操作不会影响原数据
 		for (let i = 0, l = subs.length; i < l; i++) {  // 循环触发 依赖更新
 			subs[i].update() // update 方法触发依赖更新
 		} 
@@ -90,14 +90,44 @@ function remove (arr, item) {
 // watcher  监听属性变化的 类
 export default class Watcher {
 	constructor(vm, exOrFn, cb) { // vue 实例， 表达式或者函数， cb 表示回调函数
-		this.vm = vm
+		this.vm = vm;
+		// 执行 this.getter(),就可以读取 data.a.c的内容
+		this.getter = parsePth(exOrFn);
+		this.cb = cb;
+		this.value = this.get()
 
 	}
 	get() { // 获取旧的属性
 		window.target = this; // 将 watcher 自己赋值给 依赖
 		let value = this.getter.call(this.vm, this.vm); // 将 this.vm 通过call() 作为参数 传给自己调用 getter() 以触发收集依赖逻辑
-		window.target = undefined;
+		window.target = undefined; // 逻辑触发之后就清除 
 		return value
+	}
 
+	update() { // 更新属性
+		const oldValue = this.value; // 拿到oldvalue
+		this.value = this.get(); // 再次触发get ,此次拿到最新的更新的值
+		this.cb.call(this.vm, this.value, oldValue)
+
+	}
+}
+
+/**
+ * 解析简单路径
+ */
+const baileRE = /[^\w.$]/
+export function parsePath (path) {
+	if (baileRE.test(path)) {
+		return 
+	}
+	const segments = path.split('.')
+	return function (obj) {
+		for (let i = 0; i < segments.length; i++) {
+			if (!object) {
+				return 
+			}
+			obj = obj[segments[i]];
+		}
+		return obj;
 	}
 }
